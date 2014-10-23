@@ -14,6 +14,10 @@ import itertools
 import traceback
 import sys
 import logging
+try:
+   from tendo import colorer
+except:
+   pass
 
 LOGGER = log_to_stderr()
 LOGGER.setLevel(logging.WARN)
@@ -65,40 +69,45 @@ def clone(repo, remove=True):
 
 
 def clone_and_push_in_loop(repo):
-    (ret,out,dpath) = clone(repo, remove=False)
-    logging.info("Starting writable repo %s in %s ..." % (repo, dpath))
-    if ret != 0:
-       raise Exception("Fatal error on writable thread %s => %s: %s" % (repo, dpath, out))
-    while True:
-        # appending one line to a text file
-        f = open(os.path.join(dpath, 'sample.txt'), "a")
-        f.write("bla bla made from %s \n" % dpath)
-        f.close
-        sleep(1)
+    try:
+        (ret,out,dpath) = clone(repo, remove=False)
+        logging.info("Starting writable repo %s in %s ..." % (repo, dpath))
+        if ret != 0:
+           raise Exception("Fatal error on writable thread %s => %s: %s" % (repo, dpath, out))
+        while True:
+            # appending one line to a text file
+            f = open(os.path.join(dpath, 'sample.txt'), "a")
+            f.write("bla bla made from %s \n" % dpath)
+            f.close
+            sleep(1)
 
-        proc = subprocess.Popen(["ls","-l"], stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, stdin=open(os.devnull), cwd=dpath)
-        (out,outerr) = proc.communicate()
-        ret = proc.returncode
-        print(ret, out, outerr)
+            #proc = subprocess.Popen(["ls","-l"], stdout=subprocess.PIPE,
+            #                    stderr=subprocess.STDOUT, stdin=open(os.devnull), cwd=dpath)
+            #(out,outerr) = proc.communicate()
+            #ret = proc.returncode
+            #logging.info("%s : %s : %s" % (ret, out, outerr))
 
-        proc = subprocess.Popen(["git", "commit", "-a", "-m", "some-change"], stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, stdin=open(os.devnull), cwd=dpath)
-        (out,outerr) = proc.communicate()
-        ret = proc.returncode
-        print(ret, out, outerr)
-        if ret:
-           raise Exception("commit failed!: %s" % out)
-        # pushing
-        proc = subprocess.Popen(["git", "push"], stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, stdin=open(os.devnull), cwd=dpath)
-        (out,outerr) = proc.communicate()
-        ret = proc.returncode
-        print(ret, out, outerr)
-        if ret:
-           raise Exception("push failed: %s" % out)
-        sleep(2)
-    rmtree(dpath)
+            proc = subprocess.Popen(["git", "commit", "-v", "-a", "-m", "somechange"], stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, stdin=open(os.devnull), cwd=dpath, shell=True)
+            (out,outerr) = proc.communicate()
+            ret = proc.returncode
+            logging.info("Commit: %s : %s : %s" % (ret, out, outerr))
+            if ret:
+               raise Exception("commit failed!: %s" % out)
+            # pushing
+            proc = subprocess.Popen(["git", "push"], stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, stdin=open(os.devnull), cwd=dpath, shell=True)
+            (out,outerr) = proc.communicate()
+            ret = proc.returncode
+            logging.info("Push: %s : %s : %s" % (ret, out, outerr))
+            if ret:
+               raise Exception("push failed: %s" % out)
+            sleep(2)
+        logging.info("Before cleanup...")
+        rmtree(dpath)
+        logging.info("Writable loop ended normally?")
+    except Exception as e:
+        logging.error("Failed with %s" % e)
 
 def main():
     """ main """
